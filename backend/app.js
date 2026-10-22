@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { GoogleGenAI, Modality } from "@google/genai";
+import transcriptRoutes from "./routes/transcriptRoutes.js";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/transcripts", transcriptRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({

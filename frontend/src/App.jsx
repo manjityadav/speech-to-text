@@ -1,6 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useTranscription from "./components/hooks/useTranscription.js";
+import {
+  saveTranscript,
+  getTranscripts,
+  updateTranscript,
+  deleteTranscript,
+} from "./api/transcripts";
 
 const LANGUAGES = [
   { id: "auto", label: "English + Hindi" },
@@ -46,6 +52,8 @@ export default function App() {
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState("auto");
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const {
     transcript,
@@ -56,6 +64,8 @@ export default function App() {
     startRecording,
     stopRecording,
   } = useTranscription(language);
+
+  
 
   const words = transcript.trim()
     ? transcript.trim().split(/\s+/).length
@@ -79,11 +89,59 @@ export default function App() {
     setTranscript("");
   };
 
-  const handleSave = () => {
-    // This is a temporary placeholder.
-    // We'll connect this to the PostgreSQL API next.
-    window.alert("Database saving is the next step.");
-  };
+  const loadHistory = async () => {
+  setHistoryLoading(true);
+
+  try {
+    const savedTranscripts = await getTranscripts();
+    setHistory(savedTranscripts);
+  } catch (error) {
+    window.alert(error.message || "Could not load history.");
+  } finally {
+    setHistoryLoading(false);
+  }
+};
+
+
+  useEffect(() => {
+  loadHistory();
+}, []);
+
+  const handleSave = async () => {
+  if (!transcript.trim()) {
+    window.alert("Please record or enter a transcript first.");
+    return;
+  }
+
+  try {
+    await saveTranscript({
+      title: title.trim() || "Untitled transcript",
+      content: transcript.trim(),
+      language,
+    });
+
+    window.alert("Transcript saved successfully!");
+  } catch (error) {
+    window.alert(error.message || "Could not save transcript.");
+  }
+  await loadHistory();
+};
+
+
+const handleDelete = async (id) => {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this transcript?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await deleteTranscript(id);
+    await loadHistory();
+  } catch (error) {
+    window.alert(error.message || "Failed to delete transcript.");
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 md:flex">
@@ -348,7 +406,10 @@ export default function App() {
               Saved transcripts will appear here.
             </p>
 
-            <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center">
+                {historyLoading ? (
+  <p>Loading history...</p>
+) : history.length === 0 ? (
+  <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center">
               <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-50 text-violet-600">
                 <Icon d={DOC} className="h-6 w-6" />
               </div>
@@ -358,6 +419,48 @@ export default function App() {
                 Your saved transcriptions will be listed here.
               </p>
             </div>
+) : (
+  <div className="space-y-3">
+    {history.map((item) => (
+      <div
+  key={item.id}
+  className="rounded-lg border border-gray-200 p-3"
+>
+  <p className="font-medium">{item.title}</p>
+  <p className="truncate text-sm text-gray-500">
+    {item.content}
+  </p>
+  <p className="mt-1 text-xs text-gray-400">
+    {new Date(item.createdAt).toLocaleString()}
+  </p>
+
+  <div className="mt-3 flex gap-2">
+   <button
+  type="button"
+  onClick={() => {
+  setTitle(item.title);
+  setTranscript(item.content);
+}}
+  className="rounded bg-gray-100 px-3 py-1 text-sm"
+>
+  Open
+</button>
+
+    <button
+      type="button"
+      onClick={() => handleDelete(item.id)}
+      className="rounded bg-red-100 px-3 py-1 text-sm text-red-700"
+    >
+      Delete
+    </button>
+  </div>
+</div>
+      
+    ))}
+    
+  </div>
+)}
+            
           </section>
 
           <footer className="py-8 text-center text-sm text-slate-400">
