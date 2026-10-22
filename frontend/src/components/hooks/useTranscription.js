@@ -1,9 +1,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const WS_URL =
-  import.meta.env.VITE_TRANSCRIBE_WS_URL ||
-  "ws://localhost:5000/ws/transcribe";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const WS_URL = API_URL.replace(/^http/, "ws") + "/ws/transcribe";
 
 function floatToBase64PCM(samples) {
   const pcm = new Int16Array(samples.length);
